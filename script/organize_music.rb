@@ -45,7 +45,7 @@ library.playlists.each do |playlist|
     if playlist_db_obj.blank?
       playlist_db_obj = Playlist.new
       playlist_db_obj.name = playlist_name
-      playlist_db_obj.is_download = false
+      playlist_db_obj.is_download = true
       playlist_db_obj.save
 
       puts "New playlist added: #{playlist_name}"
