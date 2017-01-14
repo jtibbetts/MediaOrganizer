@@ -18,7 +18,7 @@ if ARGV.size != 2
 end
 
 
-itunes_library_location = ARGV[0]
+itunes_library_location = ARGV[0] + '/iTunes Music Library.xml'
 target_folder = ARGV[1]
 
 library = ITunes::Library.load(itunes_library_location)
@@ -41,63 +41,60 @@ end
 library.playlists.each do |playlist|
   playlist_name = playlist.name
   if playlist_name.include? '::'
-    playlist_db_obj = Playlist.where(:name => playlist_name).first
-    if playlist_db_obj.blank?
-      playlist_db_obj = Playlist.new
-      playlist_db_obj.name = playlist_name
-      playlist_db_obj.is_download = true
-      playlist_db_obj.save
-
-      puts "New playlist added: #{playlist_name}"
+    if playlist_name.ends_with? '::'
+      # trailing :: ends folder parse
+      playlist_name = playlist_name.chomp('::')
     end
 
     # no process playlist
-    if playlist_db_obj.is_download
-      puts "Processing: #{playlist_name}"
-      zones = playlist_name.split('::')
-      path = File.join(zones)
-      path = path.gsub(/\s+/, '_')
+    puts "Processing: #{playlist_name}"
 
-      full_folder_path = File.join(target_folder, path)
-      FileUtils.mkdir_p full_folder_path
+    # to only display playlist_names, uncomment this
+    # next
 
-      item_namer = {}
-      track_offset = 0
-      playlist.tracks.each do |track|
-        source_location = track['Location']
-        source_fullpath = URI.unescape(URI.parse(source_location).path)
-        name = track.name
-        name = name.gsub(/\s+/, '_')
-        name = name.gsub(/\s*-\s*/, '_')    # intervening ' - '
-        name = name.gsub(/\//, '_')
-        name = name.gsub(/\\/, '_')
-        name = name.gsub(/\?/, '_')
-        name = name.gsub(/:/, '_')
-        name = name.gsub(/"/, '_')
-        name = name.gsub(/_+/, '_')
+    zones = playlist_name.split('::')
+    path = File.join(zones)
+    path = path.gsub(/\s+/, '_')
 
-        # generate a final_name to ensure uniqueness
-        unless item_namer.has_key? name
-          final_name = name
+    full_folder_path = File.join(target_folder, path)
+    FileUtils.mkdir_p full_folder_path
+
+    item_namer = {}
+    track_offset = 0
+    playlist.tracks.each do |track|
+      source_location = track['Location']
+      source_fullpath = URI.unescape(URI.parse(source_location).path)
+      name = track.name
+      name = name.gsub(/\s+/, '_')
+      name = name.gsub(/\s*-\s*/, '_')    # intervening ' - '
+      name = name.gsub(/\//, '_')
+      name = name.gsub(/\\/, '_')
+      name = name.gsub(/\?/, '_')
+      name = name.gsub(/:/, '_')
+      name = name.gsub(/"/, '_')
+      name = name.gsub(/_+/, '_')
+
+      # generate a final_name to ensure uniqueness
+      unless item_namer.has_key? name
+        final_name = name
+      else
+        last_name_used = item_namer[name]
+        m = /.*\[(\d+)\]$/.match last_name_used
+        if m.present?
+          name_digit = m[1].to_i
+          name_digit += 1
         else
-          last_name_used = item_namer[name]
-          m = /.*\[(\d+)\]$/.match last_name_used
-          if m.present?
-            name_digit = m[1].to_i
-            name_digit += 1
-          else
-            name_digit = 1
-          end
-          final_name = "#{name}[#{name_digit}]"
+          name_digit = 1
         end
-        item_namer[name] = final_name
-        target_fullpath = File.join(full_folder_path, "#{'%03i' % track_offset}-#{final_name + File.extname(source_fullpath)}")
-
-        copy_file_if_not_exists(source_fullpath, target_fullpath)
-
-        puts "target_fullpath: #{target_fullpath}"
-        track_offset += 1
+        final_name = "#{name}[#{name_digit}]"
       end
+      item_namer[name] = final_name
+      target_fullpath = File.join(full_folder_path, "#{'%03i' % track_offset}-#{final_name + File.extname(source_fullpath)}")
+
+      copy_file_if_not_exists(source_fullpath, target_fullpath)
+
+      puts "target_fullpath: #{target_fullpath}"
+      track_offset += 1
     end
   end
 end
