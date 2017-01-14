@@ -3,6 +3,7 @@ ENV["RAILS_ENV"] = "development"
 require File.expand_path('../../config/environment', __FILE__)
 
 require 'itunes/library'
+require 'FileUtils'
 
 # registry = Registry.new
 #
@@ -20,6 +21,11 @@ end
 
 itunes_library_location = ARGV[0] + '/iTunes Music Library.xml'
 target_folder = ARGV[1]
+
+if File.directory? target_folder
+  FileUtils.rm_rf(target_folder)
+end
+FileUtils.mkdir(target_folder)
 
 library = ITunes::Library.load(itunes_library_location)
 
